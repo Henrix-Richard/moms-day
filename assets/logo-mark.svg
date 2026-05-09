@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <defs>
+    <radialGradient id="ace" cx="30%" cy="20%" r="90%">
+      <stop offset="0%" stop-color="#FBFAF7"></stop>
+      <stop offset="45%" stop-color="#F5F2EC"></stop>
+      <stop offset="100%" stop-color="#E9D0C7"></stop>
+    </radialGradient>
+  </defs>
+  <rect x="2" y="2" width="76" height="76" rx="12" fill="url(#ace)" stroke="#0A0A0A" stroke-width="2"></rect>
+  <rect x="8" y="8" width="64" height="64" rx="8" fill="none" stroke="#0A0A0A" stroke-width="1"></rect>
+  <text x="40" y="50" text-anchor="middle" font-family="Space Grotesk, Inter, sans-serif" font-weight="600" font-size="34" letter-spacing="-0.04em" fill="#0A0A0A">md</text>
+</svg>

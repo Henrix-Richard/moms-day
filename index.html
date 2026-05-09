@@ -1,0 +1,1630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MOMdel · Investment Memorandum</title>
+<link rel="stylesheet" href="colors_and_type.css"/>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper-100);
+    color: var(--ink-1000);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---------- Boot screen ---------- */
+  .boot {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--ink-1000);
+    color: var(--paper-50);
+    display: flex; flex-direction: column;
+    padding: clamp(24px, 5vw, 56px);
+    transition: opacity 600ms var(--ease-out);
+  }
+  .boot.exit { opacity: 0; pointer-events: none; }
+  .boot-top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: var(--tracking-xwide); text-transform: uppercase;
+    color: var(--ink-300);
+  }
+  .boot-top .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 99px;
+    background: var(--signal-500); margin-right: 8px;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+  .boot-body {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    max-width: 760px; margin: 0 auto; width: 100%;
+  }
+  .boot-title {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 7vw, 88px);
+    font-weight: 500;
+    line-height: 1.0; letter-spacing: -0.04em;
+    color: var(--paper-50);
+    margin-bottom: 32px;
+  }
+  .boot-title .mom { font-style: italic; }
+  .boot-title .signal { color: var(--signal-500); }
+  .boot-lines {
+    font-family: var(--font-mono);
+    font-size: 13px; line-height: 1.8;
+    color: var(--ink-300);
+  }
+  .boot-line {
+    display: flex; align-items: center; gap: 12px;
+    opacity: 0; transform: translateY(4px);
+    animation: bootIn 240ms var(--ease-out) forwards;
+  }
+  @keyframes bootIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .boot-line .arrow { color: var(--ink-500); }
+  .boot-line .label { color: var(--paper-50); flex: 1; }
+  .boot-line .status { color: var(--ink-500); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .boot-line.done .status { color: #4FB37A; }
+  .boot-line .bar {
+    width: 80px; height: 2px; background: var(--ink-900); position: relative; overflow: hidden;
+  }
+  .boot-line .bar::after {
+    content: ''; position: absolute; inset: 0;
+    background: var(--signal-500);
+    transform: translateX(-100%);
+    animation: fill 1100ms var(--ease-out) forwards;
+  }
+  .boot-line.done .bar::after { background: var(--paper-50); transform: translateX(0); }
+  @keyframes fill { to { transform: translateX(0); } }
+  .boot-bottom {
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: var(--tracking-xwide); text-transform: uppercase;
+    color: var(--ink-500);
+    display: flex; justify-content: space-between;
+  }
+  .caret { display: inline-block; width: 8px; height: 14px; background: var(--signal-500); margin-left: 4px; vertical-align: -2px; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---------- App chrome ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px;
+    background: var(--paper-50);
+    border-bottom: 1px solid var(--paper-300);
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: var(--tracking-xwide); text-transform: uppercase;
+    color: var(--ink-500);
+  }
+  .topbar .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-display); font-size: 16px; font-weight: 500;
+    letter-spacing: -0.02em; color: var(--ink-1000);
+    text-transform: none;
+  }
+  .topbar .brand .logo {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--grad-ace);
+    border: 1px solid var(--paper-300);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-size: 11px; font-weight: 600;
+    color: var(--ink-1000); letter-spacing: 0;
+  }
+  .topbar .brand .italic { font-style: italic; }
+  .ticker {
+    display: flex; gap: 18px; align-items: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .ticker .ti { display: flex; gap: 6px; align-items: baseline; }
+  .ticker .gain { color: var(--gain-500); }
+  .ticker .signal { color: var(--signal-500); }
+  .ticker .sym { color: var(--ink-1000); font-weight: 500; }
+
+  /* ---------- Layout ---------- */
+  .shell {
+    max-width: 1240px; margin: 0 auto;
+    padding: 48px 32px 96px;
+    opacity: 0; transition: opacity 400ms var(--ease-out);
+  }
+  .shell.ready { opacity: 1; }
+
+  /* Section reveal animation */
+  .sec {
+    opacity: 0; transform: translateY(14px);
+    transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+  }
+  .sec.in { opacity: 1; transform: translateY(0); }
+
+  /* Eyebrow / labels */
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: var(--tracking-xwide); text-transform: uppercase; color: var(--ink-500); }
+  .eyebrow .num { color: var(--ink-300); margin-right: 8px; }
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+  /* Card baseline */
+  .card {
+    background: var(--paper-50);
+    border: 1px solid var(--paper-200);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .hairline { height: 1px; background: var(--paper-300); border: none; margin: 0; }
+
+  /* ---------- Section: Hero / Exec Summary ---------- */
+  .hero {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 32px;
+    margin-bottom: 64px;
+  }
+  @media (max-width: 880px) {
+    .hero { grid-template-columns: 1fr; }
+  }
+  .hero-left { padding: 8px 0; }
+  .hero-eyebrow { display: flex; gap: 14px; align-items: center; margin-bottom: 28px; }
+  .hero-eyebrow .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border: 1px solid var(--paper-300);
+    border-radius: 99px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: var(--tracking-xwide); text-transform: uppercase;
+    color: var(--ink-700);
+    background: var(--paper-50);
+  }
+  .hero-eyebrow .badge .live {
+    width: 6px; height: 6px; border-radius: 99px; background: var(--signal-500);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  h1.hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(48px, 7vw, 96px);
+    line-height: 0.96; letter-spacing: -0.04em;
+    font-weight: 500;
+    margin: 0 0 24px;
+    text-wrap: balance;
+  }
+  h1.hero-title em { font-style: italic; }
+  .hero-sub {
+    font-size: 17px; line-height: 1.5;
+    color: var(--ink-700); max-width: 48ch; text-wrap: pretty;
+    margin: 0 0 32px;
+  }
+  .hero-meta {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--paper-300);
+    padding-top: 20px; gap: 24px;
+  }
+  .hero-meta .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: var(--tracking-xwide); text-transform: uppercase; color: var(--ink-500); margin-bottom: 6px; }
+  .hero-meta .val { font-family: var(--font-display); font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
+
+  /* Hero ticker card */
+  .hero-card {
+    background: var(--grad-ace);
+    border: 1.5px solid var(--ink-1000);
+    border-radius: 14px;
+    padding: 24px;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; gap: 18px;
+    min-height: 320px;
+  }
+  .hero-card .corner-tl, .hero-card .corner-br {
+    position: absolute; font-family: var(--font-display); font-weight: 500; font-size: 22px;
+    color: var(--ink-1000);
+  }
+  .hero-card .corner-tl { top: 14px; left: 18px; }
+  .hero-card .corner-br { bottom: 14px; right: 18px; transform: rotate(180deg); }
+  .hero-card .center {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  }
+  .hero-card .ticker-sym {
+    font-family: var(--font-display); font-size: 72px; font-weight: 500;
+    letter-spacing: -0.03em; line-height: 1;
+  }
+  .hero-card .price-row { display: flex; align-items: baseline; gap: 14px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .hero-card .price { font-family: var(--font-display); font-size: 40px; font-weight: 500; letter-spacing: -0.02em; }
+  .hero-card .delta { color: var(--gain-500); font-size: 14px; font-weight: 500; }
+  .hero-card .pill {
+    align-self: center;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    background: var(--ink-1000); color: var(--paper-50);
+    padding: 4px 10px; border-radius: 99px;
+  }
+
+  /* ---------- Section header ---------- */
+  .sec-head {
+    display: flex; align-items: end; justify-content: space-between;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--paper-300);
+  }
+  .sec-head .left h2 {
+    font-family: var(--font-display); font-size: 32px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.1; margin: 4px 0 0;
+  }
+  .sec-head .left h2 em { font-style: italic; }
+  .sec-head .right {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-500);
+    display: flex; gap: 14px; align-items: center;
+  }
+  .sec-block { margin-bottom: 64px; }
+
+  /* ---------- Step 2: Assumptions ---------- */
+  .assumptions {
+    background: var(--ink-1000); color: var(--paper-50);
+    border-radius: 14px;
+    padding: 28px 32px;
+    font-family: var(--font-mono); font-size: 13px;
+  }
+  .assumptions .head {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--ink-300); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    padding-bottom: 14px; margin-bottom: 14px;
+    border-bottom: 1px solid var(--ink-900);
+  }
+  .arow {
+    display: grid; grid-template-columns: 24px 1fr auto auto;
+    gap: 14px; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed #1c1c1c;
+    opacity: 0; transform: translateY(4px);
+    transition: opacity 280ms var(--ease-out), transform 280ms var(--ease-out);
+  }
+  .arow:last-child { border-bottom: none; }
+  .arow.in { opacity: 1; transform: translateY(0); }
+  .arow .ln { color: var(--ink-500); font-size: 11px; }
+  .arow .lbl { color: var(--paper-50); }
+  .arow .calc {
+    color: var(--ink-300); font-size: 11px;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .arow .calc.hide { display: none; }
+  .arow .calc .spinner {
+    width: 10px; height: 10px; border-radius: 99px;
+    border: 1.5px solid var(--ink-500); border-top-color: var(--paper-50);
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .arow .result {
+    opacity: 0; transition: opacity 200ms var(--ease-out);
+    font-family: var(--font-mono); font-size: 12px;
+    color: #4FB37A;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 3px 8px; border: 1px solid #1c5a3a; border-radius: 99px;
+    background: rgba(31, 122, 76, 0.12);
+  }
+  .arow .result.show { opacity: 1; }
+
+  /* ---------- Step 3: Drivers ---------- */
+  .drivers {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 980px) { .drivers { grid-template-columns: repeat(2, 1fr); } }
+  .driver {
+    background: var(--paper-50);
+    border: 1px solid var(--paper-200);
+    border-radius: 14px;
+    padding: 22px 20px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 200px;
+    opacity: 0; transform: translateY(10px);
+    transition: opacity 480ms var(--ease-out), transform 480ms var(--ease-out);
+    position: relative;
+  }
+  .driver.in { opacity: 1; transform: translateY(0); }
+  .driver .ord { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; color: var(--ink-300); }
+  .driver .glyph {
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--paper-300);
+    display: grid; place-items: center;
+    background: var(--paper-100);
+  }
+  .driver .glyph svg { width: 18px; height: 18px; }
+  .driver .name { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.15; margin-top: auto; }
+  .driver .meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-500); display: flex; justify-content: space-between; }
+  .driver .meta .v { color: var(--gain-500); }
+  .driver .bar { height: 2px; background: var(--paper-200); position: relative; overflow: hidden; }
+  .driver .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-1000); width: 0%; transition: width 900ms var(--ease-out) 200ms; }
+  .driver.in .bar i { width: var(--w, 92%); }
+
+  /* ---------- Step 4: Valuation ---------- */
+  .valuation {
+    display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px;
+  }
+  @media (max-width: 980px) { .valuation { grid-template-columns: 1fr; } }
+  .compute {
+    background: var(--ink-1000); color: var(--paper-50);
+    border-radius: 14px;
+    padding: 24px;
+    font-family: var(--font-mono); font-size: 13px;
+    min-height: 280px;
+  }
+  .compute .h {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--ink-300); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    padding-bottom: 12px; border-bottom: 1px solid var(--ink-900); margin-bottom: 14px;
+  }
+  .crow {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0;
+    color: var(--paper-50);
+    opacity: 0; transform: translateY(3px);
+    transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
+  }
+  .crow.in { opacity: 1; transform: translateY(0); }
+  .crow .pct { color: var(--ink-300); font-size: 11px; }
+  .crow .check { color: #4FB37A; font-size: 11px; opacity: 0; transition: opacity 200ms; }
+  .crow .check.show { opacity: 1; }
+  .crow.computing .check { display: none; }
+  .crow.computing .pct::after {
+    content: ''; display: inline-block; margin-left: 8px;
+    width: 8px; height: 8px; border-radius: 99px;
+    border: 1.5px solid var(--ink-500); border-top-color: var(--paper-50);
+    animation: spin 0.7s linear infinite; vertical-align: -1px;
+  }
+  .compute .converge {
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid var(--ink-900);
+    display: flex; justify-content: space-between; align-items: center;
+    color: #4FB37A; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    opacity: 0; transition: opacity 400ms var(--ease-out);
+  }
+  .compute .converge.in { opacity: 1; }
+
+  .val-output {
+    display: grid; grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+  .val-output .grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .val-tile {
+    background: var(--paper-50); border: 1px solid var(--paper-200);
+    border-radius: 14px; padding: 20px;
+    opacity: 0; transform: translateY(10px);
+    transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out);
+  }
+  .val-tile.in { opacity: 1; transform: translateY(0); }
+  .val-tile .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-500); }
+  .val-tile .v { font-family: var(--font-display); font-size: 44px; font-weight: 500; letter-spacing: -0.03em; line-height: 1.05; margin-top: 8px; }
+  .val-tile .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-500); margin-top: 6px; }
+  .val-tile.dark { background: var(--ink-1000); color: var(--paper-50); border-color: var(--ink-1000); }
+  .val-tile.dark .lbl { color: var(--ink-300); }
+  .val-tile.dark .sub { color: var(--ink-300); }
+  .val-tile.dark .v { color: #4FB37A; }
+  .val-tile .v.inf { font-size: 64px; }
+  .val-tile.signal .v { color: var(--signal-500); }
+
+  .val-quote {
+    grid-column: 1 / -1;
+    border: 1px solid var(--paper-300);
+    border-left: 3px solid var(--signal-500);
+    padding: 18px 22px;
+    border-radius: 4px;
+    font-family: var(--font-display); font-size: 18px;
+    letter-spacing: -0.01em; line-height: 1.35;
+    color: var(--ink-1000); background: var(--paper-50);
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out);
+  }
+  .val-quote.in { opacity: 1; transform: translateY(0); }
+
+  /* ---------- Step 5: Risk ---------- */
+  .risk-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+  @media (max-width: 880px) { .risk-grid { grid-template-columns: 1fr; } }
+  .risk-list { display: flex; flex-direction: column; }
+  .risk-row {
+    display: grid; grid-template-columns: 32px 1.2fr 1fr 90px;
+    gap: 16px; align-items: center;
+    padding: 18px 4px;
+    border-bottom: 1px solid var(--paper-300);
+    opacity: 0; transform: translateY(6px);
+    transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
+  }
+  .risk-row.in { opacity: 1; transform: translateY(0); }
+  .risk-row .n { font-family: var(--font-mono); font-size: 11px; color: var(--ink-300); }
+  .risk-row .what { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
+  .risk-row .desc { font-size: 13px; color: var(--ink-700); }
+  .risk-row .level {
+    text-align: right;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .risk-row .level .pill {
+    display: inline-block; padding: 3px 8px; border-radius: 99px;
+    border: 1px solid var(--paper-300); color: var(--ink-700);
+  }
+  .risk-row.head {
+    border-bottom-color: var(--ink-1000);
+    padding-bottom: 10px; padding-top: 0;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-500);
+  }
+  .risk-mit {
+    background: var(--ink-1000); color: var(--paper-50);
+    border-radius: 14px; padding: 28px;
+    display: flex; flex-direction: column; gap: 14px;
+    align-self: start;
+  }
+  .risk-mit .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-300); }
+  .risk-mit .h { font-family: var(--font-display); font-size: 26px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; }
+  .risk-mit .h em { font-style: italic; }
+  .risk-mit .note { font-family: var(--font-mono); font-size: 11px; color: var(--ink-300); }
+
+  /* ---------- Step 6: Recommendation ---------- */
+  .reco {
+    background: var(--ink-1000);
+    color: var(--paper-50);
+    border-radius: 14px;
+    padding: 56px 48px;
+    position: relative; overflow: hidden;
+  }
+  .reco::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(80% 60% at 80% 20%, rgba(209,72,54,0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .reco .top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-300); margin-bottom: 32px;
+    position: relative;
+  }
+  .reco-stack { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; align-items: end; position: relative; }
+  @media (max-width: 980px) { .reco-stack { grid-template-columns: 1fr; } }
+  .reco h2.big {
+    font-family: var(--font-display);
+    font-size: clamp(56px, 9vw, 128px);
+    font-weight: 500; letter-spacing: -0.04em; line-height: 0.92;
+    margin: 0; color: var(--paper-50);
+  }
+  .reco h2.big .signal { color: var(--signal-500); }
+  .reco .lines {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .reco .ln {
+    display: grid; grid-template-columns: 28px 1fr auto; gap: 14px; align-items: baseline;
+    border-bottom: 1px dashed #2a2a2a; padding-bottom: 12px;
+  }
+  .reco .ln:last-child { border-bottom: none; }
+  .reco .ln .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-500); }
+  .reco .ln .lbl { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-300); }
+  .reco .ln .v { font-family: var(--font-display); font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: var(--paper-50); text-align: right; }
+  .reco .ln .v em { font-style: italic; }
+
+  .reco .reveal { opacity: 0; transform: translateY(8px); transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out); }
+  .reco .reveal.in { opacity: 1; transform: translateY(0); }
+
+  /* ---------- Final ---------- */
+  .final {
+    margin-top: 96px;
+    text-align: center;
+    padding: 64px 24px 24px;
+  }
+  .final .heart {
+    width: 36px; height: 36px; margin: 0 auto 24px;
+    color: var(--signal-500);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+  }
+  .final.in .heart { opacity: 1; transform: scale(1); }
+  .final h1 {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 500; letter-spacing: -0.03em; line-height: 1.05;
+    margin: 0 0 16px;
+    color: var(--ink-1000);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 900ms var(--ease-out) 200ms, transform 900ms var(--ease-out) 200ms;
+  }
+  .final h1 em { font-style: italic; color: var(--signal-500); }
+  .final.in h1 { opacity: 1; transform: translateY(0); }
+  .final p {
+    font-family: var(--font-display);
+    font-size: 22px; letter-spacing: -0.01em;
+    color: var(--ink-700);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 900ms var(--ease-out) 500ms, transform 900ms var(--ease-out) 500ms;
+    margin: 0 0 8px;
+  }
+  .final.in p { opacity: 1; transform: translateY(0); }
+  .final .sig {
+    margin-top: 32px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-500);
+    opacity: 0; transition: opacity 900ms var(--ease-out) 1000ms;
+  }
+  .final.in .sig { opacity: 1; }
+
+  /* ---------- Replay button ---------- */
+  .replay {
+    position: fixed; bottom: 24px; right: 24px;
+    z-index: 60;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    background: var(--ink-1000); color: var(--paper-50);
+    border-radius: 99px; border: none;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0; pointer-events: none;
+    transition: opacity 400ms var(--ease-out), background var(--dur-base) var(--ease-out);
+  }
+  .replay.show { opacity: 1; pointer-events: auto; }
+  .replay:hover { background: var(--ink-700); }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel">
+// tweaks-panel.jsx — inlined for file:// compatibility
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+  .twk-field{appearance:none;width:100%;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+  .twk-num{display:flex;align-items:center;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+  .twk-chips{display:flex;gap:6px}
+  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:46px;
+    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:default;
+    box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.06);
+    transition:transform .12s cubic-bezier(.3,.7,.4,1),box-shadow .12s}
+  .twk-chip:hover{transform:translateY(-1px);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+  .twk-chip[data-on="1"]{box-shadow:0 0 0 1.5px rgba(0,0,0,.85),
+    0 2px 6px rgba(0,0,0,.15)}
+  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;
+    display:flex;flex-direction:column;box-shadow:-1px 0 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i{flex:1;box-shadow:0 -1px 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i:first-child{box-shadow:none}
+  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+`;
+
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  const hasDeckStage = React.useMemo(
+    () => typeof document !== 'undefined' && !!document.querySelector('deck-stage'),
+    [],
+  );
+  const [railEnabled, setRailEnabled] = React.useState(
+    () => hasDeckStage && !!document.querySelector('deck-stage')?._railEnabled,
+  );
+  React.useEffect(() => {
+    if (!hasDeckStage || railEnabled) return undefined;
+    const onMsg = (e) => {
+      if (e.data && e.data.type === '__omelette_rail_enabled') setRailEnabled(true);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [hasDeckStage, railEnabled]);
+  const [railVisible, setRailVisible] = React.useState(() => {
+    try { return localStorage.getItem('deck-stage.railVisible') !== '0'; } catch (e) { return true; }
+  });
+  const toggleRail = (on) => {
+    setRailVisible(on);
+    window.postMessage({ type: '__deck_rail_visible', on }, '*');
+  };
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);
+      else if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy),
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  if (!open) return null;
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" data-noncommentable=""
+           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close tweaks"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={dismiss}>✕</button>
+        </div>
+        <div className="twk-body">
+          {children}
+          {hasDeckStage && railEnabled && !noDeckControls && (
+            <TweakSection label="Deck">
+              <TweakToggle label="Thumbnail rail" value={railVisible} onChange={toggleRail} />
+            </TweakSection>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TweakSection({ label, children }) {
+  return (
+    <>
+      <div className="twk-sect">{label}</div>
+      {children}
+    </>
+  );
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl">
+        <span>{label}</span>
+        {value != null && <span className="twk-val">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+  const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+  const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+  if (!fitsAsSegments) {
+    const resolve = (s) => {
+      const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === s);
+      return m === undefined ? s : typeof m === 'object' ? m.value : m;
+    };
+    return <TweakSelect label={label} value={value} options={options}
+                        onChange={(s) => onChange(resolve(s))} />;
+  }
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                      width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => {
+          const v = typeof o === 'object' ? o.value : o;
+          const l = typeof o === 'object' ? o.label : o;
+          return <option key={v} value={v}>{l}</option>;
+        })}
+      </select>
+    </TweakRow>
+  );
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <input className="twk-field" type="text" value={value} placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+    </TweakRow>
+  );
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => {
+    if (min != null && n < min) return min;
+    if (max != null && n > max) return max;
+    return n;
+  };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => {
+      const dx = ev.clientX - startRef.current.x;
+      const raw = startRef.current.val + dx * step;
+      const snapped = Math.round(raw / step) * step;
+      onChange(clamp(Number(snapped.toFixed(decimals))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="twk-num">
+      <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
+      <input type="number" value={value} min={min} max={max} step={step}
+             onChange={(e) => onChange(clamp(Number(e.target.value)))} />
+      {unit && <span className="twk-num-unit">{unit}</span>}
+    </div>
+  );
+}
+
+function __twkIsLight(hex) {
+  const h = String(hex).replace('#', '');
+  const x = h.length === 3 ? h.replace(/./g, (c) => c + c) : h.padEnd(6, '0');
+  const n = parseInt(x.slice(0, 6), 16);
+  if (Number.isNaN(n)) return true;
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return r * 299 + g * 587 + b * 114 > 148000;
+}
+
+const __TwkCheck = ({ light }) => (
+  <svg viewBox="0 0 14 14" aria-hidden="true">
+    <path d="M3 7.2 5.8 10 11 4.2" fill="none" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round"
+          stroke={light ? 'rgba(0,0,0,.78)' : '#fff'} />
+  </svg>
+);
+
+function TweakColor({ label, value, options, onChange }) {
+  if (!options || !options.length) {
+    return (
+      <div className="twk-row twk-row-h">
+        <div className="twk-lbl"><span>{label}</span></div>
+        <input type="color" className="twk-swatch" value={value}
+               onChange={(e) => onChange(e.target.value)} />
+      </div>
+    );
+  }
+  const key = (o) => String(JSON.stringify(o)).toLowerCase();
+  const cur = key(value);
+  return (
+    <TweakRow label={label}>
+      <div className="twk-chips" role="radiogroup">
+        {options.map((o, i) => {
+          const colors = Array.isArray(o) ? o : [o];
+          const [hero, ...rest] = colors;
+          const sup = rest.slice(0, 4);
+          const on = key(o) === cur;
+          return (
+            <button key={i} type="button" className="twk-chip" role="radio"
+                    aria-checked={on} data-on={on ? '1' : '0'}
+                    aria-label={colors.join(', ')} title={colors.join(' · ')}
+                    style={{ background: hero }}
+                    onClick={() => onChange(o)}>
+              {sup.length > 0 && (
+                <span>
+                  {sup.map((c, j) => <i key={j} style={{ background: c }} />)}
+                </span>
+              )}
+              {on && <__TwkCheck light={__twkIsLight(hero)} />}
+            </button>
+          );
+        })}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (
+    <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'}
+            onClick={onClick}>{label}</button>
+  );
+}
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "assetName": "Mom",
+      "coverageSince": "as long as I can remember",
+      "analyst": "Your kid",
+      "rating": "Strong buy",
+      "dividend": "unconditional love",
+      "speed": 1,
+      "skipBoot": false
+    }/*EDITMODE-END*/;
+
+    // ---------- helpers ----------
+    const useSequence = (active) => {
+      const [tick, setTick] = useState(0);
+      const startedAt = useRef(null);
+      useEffect(() => {
+        if (!active) { startedAt.current = null; setTick(0); return; }
+        startedAt.current = performance.now();
+        let raf;
+        const loop = () => {
+          setTick(performance.now() - startedAt.current);
+          raf = requestAnimationFrame(loop);
+        };
+        raf = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(raf);
+      }, [active]);
+      return tick;
+    };
+
+    // ---------- Boot screen ----------
+    const BOOT_LINES = [
+      { t: 0,     label: 'Starting up the MOMdel system',                dur: 2250 },
+      { t: 1350,  label: 'Loading twenty-one years of memories',          dur: 2850 },
+      { t: 3450,  label: 'Counting the times she was there for you',      dur: 2850 },
+      { t: 6000,  label: 'Measuring how much she cares (a lot)',          dur: 2850 },
+      { t: 8550,  label: 'Adding up every piece of advice she ever gave', dur: 2550 },
+      { t: 10800, label: 'Putting the report together',                   dur: 2250 },
+    ];
+    const BOOT_TOTAL = 13500;
+
+    function Boot({ exiting }) {
+      const elapsed = useSequence(true);
+      const now = new Date();
+      const dt = now.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+      const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const overall = Math.min(100, Math.round((elapsed / BOOT_TOTAL) * 100));
+      return (
+        <div className={`boot ${exiting ? 'exit' : ''}`}>
+          <div className="boot-top">
+            <div><span className="dot"/>Modern Capital · Internal</div>
+            <div>v 26.05 · Mother's Day Edition · {dt} {time}</div>
+          </div>
+          <div className="boot-body">
+            <div className="boot-title">
+              <span className="signal">M</span><span className="mom">OM</span>del<span className="caret"/>
+            </div>
+            <div className="boot-lines">
+              {BOOT_LINES.map((l, i) => {
+                const visible = elapsed >= l.t;
+                const done = elapsed >= l.t + l.dur;
+                if (!visible) return null;
+                return (
+                  <div key={i} className={`boot-line ${done ? 'done' : ''}`}>
+                    <span className="arrow">›</span>
+                    <span className="label">{l.label}</span>
+                    <span className="bar"/>
+                    <span className="status">{done ? 'OK' : 'RUN'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="boot-bottom">
+            <div>Memorandum No. 01 · Asset class: Family</div>
+            <div>{overall}% · Press any key to skip</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Step 2: Assumptions ----------
+    const ASSUMPTIONS = [
+      { k: 'Daily support',            calc: 'querying availability matrix',       v: 'Always available' },
+      { k: 'Emotional stability',      calc: 'analyzing 21-yr signal',              v: 'Extremely high' },
+      { k: 'Life guidance',            calc: 'cross-referencing wisdom corpus',     v: 'Excellent' },
+      { k: 'Availability (uptime)',    calc: 'pinging server (heart)',              v: '100.00%' },
+      { k: 'Care delivery rate',       calc: 'measuring per-call output',           v: 'Unlimited' },
+      { k: 'Failure-recovery support', calc: 'replaying support events',            v: 'Always there' },
+      { k: 'Discount rate (love)',     calc: 'attempting to apply',                 v: 'Cannot be discounted' },
+    ];
+
+    function Assumptions({ start }) {
+      const elapsed = useSequence(start);
+      const STEP = 380;
+      const COMPUTE = 700;
+      return (
+        <div className="assumptions">
+          <div className="head">
+            <div>assumptions.csv · 7 lines</div>
+          </div>
+          {ASSUMPTIONS.map((a, i) => {
+            const myStart = i * STEP;
+            const showRow = elapsed >= myStart;
+            const showResult = elapsed >= myStart + COMPUTE;
+            return (
+              <div key={i} className={`arow ${showRow ? 'in' : ''}`}>
+                <span className="ln">{String(i+1).padStart(2,'0')}</span>
+                <span className="lbl">{a.k}</span>
+                <span className={`calc ${showResult ? 'hide' : ''}`}>
+                  <span className="spinner"/>{a.calc}
+                </span>
+                <span className={`result ${showResult ? 'show' : ''}`}>{a.v}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ---------- Step 3: Drivers ----------
+    const Glyph = ({ name }) => {
+      const props = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' };
+      switch(name) {
+        case 'heart': return <svg {...props}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>;
+        case 'compass': return <svg {...props}><circle cx="12" cy="12" r="9"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>;
+        case 'hands': return <svg {...props}><path d="M3 12h2m14 0h2M5 16c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="12" cy="6" r="2.5"/></svg>;
+        case 'shield': return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>;
+        case 'pin': return <svg {...props}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+        default: return null;
+      }
+    };
+
+    const DRIVERS = [
+      { glyph: 'heart',   name: 'Emotional support',  m: 'mood · realtime',      v: '+18.4%', w: '94%' },
+      { glyph: 'compass', name: 'Life advice',         m: 'wisdom · cumulative',  v: 'AAA',    w: '88%' },
+      { glyph: 'hands',   name: 'Care and attention',  m: 'attention · per call', v: '+24.7%', w: '96%' },
+      { glyph: 'shield',  name: 'Reliability',         m: 'uptime · 21-yr',       v: '100%',   w: '100%' },
+      { glyph: 'pin',     name: 'Constant presence',   m: 'presence · always-on', v: '∞',      w: '100%' },
+    ];
+
+    function Drivers({ start }) {
+      const elapsed = useSequence(start);
+      const STEP = 220;
+      return (
+        <div className="drivers">
+          {DRIVERS.map((d, i) => (
+            <div key={i} className={`driver ${elapsed > i * STEP ? 'in' : ''}`} style={{'--w': d.w}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div className="glyph"><Glyph name={d.glyph}/></div>
+                <div className="ord">No. {String(i+1).padStart(2,'0')}</div>
+              </div>
+              <div className="name">{d.name}</div>
+              <div className="bar"><i/></div>
+              <div className="meta"><span>{d.m}</span><span className="v">↑ {d.v}</span></div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ---------- Value chart ----------
+    function ValueChart({ visible }) {
+      const startYear = 2004, endYear = new Date().getFullYear();
+      const pts = endYear - startYear;
+      const data = Array.from({length: pts + 1}, (_, i) => ({
+        year: startYear + i,
+        v: Math.pow(1.24, i),
+      }));
+      const maxV = data[data.length - 1].v;
+
+      const W = 540, H = 88;
+      const pL = 8, pR = 28, pT = 8, pB = 20;
+      const cW = W - pL - pR, cH = H - pT - pB;
+
+      const x = (i) => pL + (i / pts) * cW;
+      const y = (v) => pT + cH - (v / maxV) * cH;
+
+      const line = data.map((d, i) =>
+        `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(d.v).toFixed(1)}`
+      ).join(' ');
+      const area = line
+        + ` L${x(pts).toFixed(1)},${(pT + cH).toFixed(1)}`
+        + ` L${x(0).toFixed(1)},${(pT + cH).toFixed(1)}Z`;
+
+      // ~5 evenly spaced ticks including start and end
+      const tickYears = [startYear, startYear + 5, startYear + 10, startYear + 15, endYear];
+
+      return (
+        <div style={{
+          marginTop: 16, paddingTop: 14,
+          borderTop: '1px solid #1c1c1c',
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 500ms cubic-bezier(0.2,0.7,0.1,1)',
+        }}>
+          <div style={{fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.14em',
+                       textTransform:'uppercase', color:'#6B6B6B', marginBottom:8}}>
+            Value trajectory · {startYear} to present
+          </div>
+          <svg viewBox={`0 0 ${W} ${H}`}
+               style={{width:'100%', display:'block', overflow:'visible'}}>
+            <defs>
+              <linearGradient id="cFillDark" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#4FB37A" stopOpacity="0.18"/>
+                <stop offset="100%" stopColor="#4FB37A" stopOpacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1={pL} y1={pT+cH} x2={W-pR} y2={pT+cH}
+                  stroke="#1c1c1c" strokeWidth="1"/>
+            <path d={area} fill="url(#cFillDark)"/>
+            <path d={line} fill="none" stroke="#4FB37A" strokeWidth="1.5"
+                  strokeLinejoin="round" strokeLinecap="round"/>
+            <circle cx={x(pts)} cy={y(maxV)} r="2.5" fill="#4FB37A"/>
+            <text x={x(pts)+6} y={y(maxV)+4}
+                  fontFamily="Exo 2, sans-serif" fontSize="13" fontWeight="500"
+                  fill="#4FB37A">∞</text>
+            {tickYears.map(yr => (
+              <text key={yr} x={x(yr - startYear)} y={H}
+                    textAnchor="middle"
+                    fontFamily="JetBrains Mono, monospace" fontSize="8.5"
+                    fill="#6B6B6B" letterSpacing="0.05em">{yr}</text>
+            ))}
+          </svg>
+        </div>
+      );
+    }
+
+    // ---------- Step 4: Valuation ----------
+    const COMPUTE_LINES = [
+      { lbl: 'Running valuation model',          pct: 'pass 01 / 04' },
+      { lbl: 'Discounting emotional cash flows', pct: 'WACC ≈ 0.00%' },
+      { lbl: 'Adjusting for life impact',        pct: 'σ → 0' },
+      { lbl: 'Stress-testing across decades',    pct: '1995 to 2026' },
+      { lbl: 'Converging results',               pct: 'Δ < ε' },
+    ];
+
+    function Valuation({ start }) {
+      const elapsed = useSequence(start);
+      const STEP = 420;
+      const COMPUTE = 700;
+      const allDone = elapsed > COMPUTE_LINES.length * STEP + 200;
+      const tilesAt = COMPUTE_LINES.length * STEP + 600;
+      return (
+        <div className="valuation">
+          <div className="compute">
+            <div className="h">
+              <div>valuation.run · live</div>
+              <div>convergence test</div>
+            </div>
+            {COMPUTE_LINES.map((c, i) => {
+              const myStart = i * STEP;
+              const showRow = elapsed >= myStart;
+              const computing = elapsed >= myStart && elapsed < myStart + COMPUTE;
+              const done = elapsed >= myStart + COMPUTE;
+              return (
+                <div key={i} className={`crow ${showRow ? 'in' : ''} ${computing ? 'computing' : ''}`}>
+                  <span>{c.lbl}</span>
+                  <span className="pct">{c.pct}</span>
+                  <span className={`check ${done ? 'show' : ''}`}>✓</span>
+                </div>
+              );
+            })}
+            <div className={`converge ${allDone ? 'in' : ''}`}>
+              <span>Model converged.</span>
+              <span>R² = 1.000</span>
+            </div>
+            <ValueChart visible={allDone}/>
+          </div>
+
+          <div className="val-output">
+            <div className="grid">
+              <div className={`val-tile dark ${elapsed > tilesAt ? 'in' : ''}`}>
+                <div className="lbl">Intrinsic value</div>
+                <div className="v inf">∞</div>
+                <div className="sub">Bounded above by no quantity we measure.</div>
+              </div>
+              <div className={`val-tile ${elapsed > tilesAt + 120 ? 'in' : ''}`}>
+                <div className="lbl">Terminal value</div>
+                <div className="v inf">∞</div>
+                <div className="sub">No terminal year. She just keeps showing up.</div>
+              </div>
+              <div className={`val-tile ${elapsed > tilesAt + 240 ? 'in' : ''}`}>
+                <div className="lbl">Risk-adjusted return</div>
+                <div className="v">Extremely<br/><em style={{fontStyle:'italic'}}>high</em></div>
+                <div className="sub">Sharpe ratio off the chart. Auditor: speechless.</div>
+              </div>
+              <div className={`val-tile ${elapsed > tilesAt + 360 ? 'in' : ''}`}>
+                <div className="lbl">Volatility</div>
+                <div className="v">Low</div>
+                <div className="sub">She stabilizes everything around her.</div>
+              </div>
+              <div className={`val-quote ${elapsed > tilesAt + 600 ? 'in' : ''}`}>
+                The model shows continuously increasing value with no meaningful downside. A position rarely seen in nature.
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Step 5: Risk ----------
+    const RISKS = [
+      { what: 'Not calling enough',           desc: "Frequency of contact trends below mom's expectation.", level: 'High' },
+      { what: 'Underappreciation',            desc: "Daily care is invisible until it isn't there.",         level: 'Medium' },
+      { what: 'Delayed recognition of value', desc: 'Realized too late, often retrospectively.',              level: 'Medium' },
+      { what: 'Forgetting to say thank you',  desc: 'Compounds quietly. Goes uncorrected for years.',         level: 'High' },
+    ];
+
+    function Risk({ start }) {
+      const elapsed = useSequence(start);
+      const STEP = 240;
+      return (
+        <div className="risk-grid">
+          <div className="risk-list">
+            <div className="risk-row head">
+              <span/>
+              <span>Risk</span>
+              <span>Description</span>
+              <span style={{textAlign:'right'}}>Level</span>
+            </div>
+            {RISKS.map((r, i) => (
+              <div key={i} className={`risk-row ${elapsed > i * STEP ? 'in' : ''}`}>
+                <span className="n">R-{String(i+1).padStart(2,'0')}</span>
+                <span className="what">{r.what}</span>
+                <span className="desc">{r.desc}</span>
+                <span className="level"><span className="pill">{r.level}</span></span>
+              </div>
+            ))}
+          </div>
+          <div className="risk-mit">
+            <div className="lbl">Mitigation strategy</div>
+            <div className="h">A single, repeatable action neutralizes all of the above:<br/><em>call your mom.</em></div>
+            <div className="note">Frequency · weekly minimum · daily ideal.</div>
+            <div className="note" style={{color: 'var(--paper-50)', fontFamily: 'var(--font-display)', fontSize: 14, letterSpacing: '-0.01em', textTransform: 'none', marginTop: 4}}>That is the whole strategy.</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Step 6: Recommendation ----------
+    function Reco({ start, t }) {
+      const elapsed = useSequence(start);
+      const ratingParts = (() => {
+        const parts = String(t.rating || 'Strong buy').split(' ');
+        if (parts.length === 1) return { head: parts[0], tail: '' };
+        return { head: parts[0], tail: parts.slice(1).join(' ') };
+      })();
+      return (
+        <div className="reco">
+          <div className="top">
+            <div className={`reveal ${elapsed > 0 ? 'in' : ''}`}>Final recommendation · MOMdel No. 01</div>
+            <div className={`reveal ${elapsed > 100 ? 'in' : ''}`}>Issued {new Date(new Date().getFullYear(), 4, 10).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+          </div>
+          <div className="reco-stack">
+            <h2 className={`big reveal ${elapsed > 200 ? 'in' : ''}`}>
+              <span className="signal">{ratingParts.head}</span>{ratingParts.tail && <><br/>{ratingParts.tail}.</>}
+            </h2>
+            <div className="lines">
+              <div className={`ln reveal ${elapsed > 700 ? 'in' : ''}`}>
+                <span className="k">A</span>
+                <span className="lbl">Rating</span>
+                <span className="v">{t.rating}</span>
+              </div>
+              <div className={`ln reveal ${elapsed > 950 ? 'in' : ''}`}>
+                <span className="k">B</span>
+                <span className="lbl">Position</span>
+                <span className="v">Hold <em>forever</em></span>
+              </div>
+              <div className={`ln reveal ${elapsed > 1200 ? 'in' : ''}`}>
+                <span className="k">C</span>
+                <span className="lbl">Time horizon</span>
+                <span className="v">A lifetime</span>
+              </div>
+              <div className={`ln reveal ${elapsed > 1450 ? 'in' : ''}`}>
+                <span className="k">D</span>
+                <span className="lbl">Dividend policy</span>
+                <span className="v"><em>{t.dividend}</em></span>
+              </div>
+              <div className={`ln reveal ${elapsed > 1700 ? 'in' : ''}`}>
+                <span className="k">E</span>
+                <span className="lbl">Yield</span>
+                <span className="v">Compounds daily</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Hero / Exec Summary ----------
+    function Hero({ t }) {
+      const ASSET_TICKER = (t.assetName || 'MOM').toUpperCase().slice(0, 4);
+      const isYear = /^\d{4}$/.test(String(t.coverageSince).trim());
+      return (
+        <div className="hero">
+          <div className="hero-left">
+            <div className="hero-eyebrow">
+              <span className="badge"><span className="live"/>Memorandum No. 01</span>
+              <span className="eyebrow">Modern Capital · Private &amp; confidential</span>
+            </div>
+            <h1 className="hero-title">An investment thesis on <em>{t.assetName}.</em></h1>
+            <p className="hero-sub">A live financial model of a single asset, built from over two decades of observation, with no detectable downside. We are issuing this memorandum on Mother's Day with our highest possible conviction.</p>
+            <div className="hero-meta">
+              <div><div className="lbl">Asset</div><div className="val">{t.assetName} (private)</div></div>
+              <div><div className="lbl">Coverage since</div><div className={isYear ? 'val num' : 'val'} style={isYear ? null : {fontSize: 15, lineHeight: 1.25}}>{t.coverageSince}</div></div>
+              <div><div className="lbl">Analyst</div><div className="val">{t.analyst}</div></div>
+            </div>
+          </div>
+          <div className="hero-card">
+            <div className="corner-tl">{ASSET_TICKER[0]} ♥</div>
+            <div className="corner-br">{ASSET_TICKER[0]} ♥</div>
+            <div className="center">
+              <div style={{fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-700)'}}>NYSE: {ASSET_TICKER} · Class A</div>
+              <div className="ticker-sym">{ASSET_TICKER}</div>
+              <div className="price-row">
+                <div className="price">∞</div>
+                <div className="delta">↑ priceless</div>
+              </div>
+              <div className="pill">Live · streaming since {isYear ? t.coverageSince : 'forever'}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ---------- Master sequence ----------
+    function App() {
+      const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const [phase, setPhase] = useState(t.skipBoot ? 'running' : 'boot');
+      const [step, setStep]   = useState(0);
+      const [done, setDone]   = useState(false);
+
+      useEffect(() => {
+        if (phase !== 'boot') return;
+        const skip = (e) => {
+          if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+            handleExit();
+          }
+        };
+        window.addEventListener('keydown', skip);
+        const bootDur = BOOT_TOTAL / Math.max(0.25, t.speed);
+        const t1 = setTimeout(() => handleExit(), bootDur);
+        function handleExit() {
+          setPhase('exiting');
+          setTimeout(() => setPhase('running'), 600);
+        }
+        return () => { clearTimeout(t1); window.removeEventListener('keydown', skip); };
+      }, [phase, t.speed]);
+
+      useEffect(() => {
+        if (phase !== 'running') return;
+        const SCHEDULE = [
+          { step: 1, at: 200    },
+          { step: 2, at: 1800   },
+          { step: 3, at: 5400   },
+          { step: 4, at: 6800   },
+          { step: 5, at: 11000  },
+          { step: 6, at: 13000  },
+          { step: 7, at: 16500  },
+        ];
+        const sp = Math.max(0.25, t.speed);
+        const timers = SCHEDULE.map(s => setTimeout(() => setStep(s.step), s.at / sp));
+        const doneT = setTimeout(() => setDone(true), 17500 / sp);
+        return () => { timers.forEach(clearTimeout); clearTimeout(doneT); };
+      }, [phase, t.speed]);
+
+      const replay = () => {
+        setStep(0); setDone(false);
+        setPhase(t.skipBoot ? 'running' : 'boot');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      return (
+        <>
+          {(phase === 'boot' || phase === 'exiting') && <Boot exiting={phase === 'exiting'}/>}
+
+          <div className="topbar">
+            <div className="brand">
+              <div className="logo">{(t.assetName||'M')[0].toUpperCase()}</div>
+              <span><span style={{color:'var(--signal-500)'}}>{(t.assetName||'M')[0].toUpperCase()}</span><span className="italic">{(t.assetName||'OM').slice(1).toUpperCase() || 'OM'}</span>del</span>
+            </div>
+            <div className="ticker">
+              <div className="ti"><span className="sym">{(t.assetName||'MOM').toUpperCase().slice(0,4)}</span><span className="num">∞</span><span className="gain">↑ priceless</span></div>
+<div className="ti"><span className="signal">● LIVE</span></div>
+            </div>
+          </div>
+
+          <main className={`shell ${phase === 'running' ? 'ready' : ''}`}>
+            <section className={`sec ${step >= 1 ? 'in' : ''}`} style={{marginBottom: 64}}>
+              <Hero t={t}/>
+            </section>
+
+            <section className={`sec sec-block ${step >= 2 ? 'in' : ''}`}>
+              <div className="sec-head">
+                <div className="left">
+                  <div className="eyebrow"><span className="num">No. 02</span>Step · Assumptions</div>
+                  <h2>Model assumptions, computed live.</h2>
+                </div>
+                <div className="right">
+                  <span>Source: 21 years of lived experience</span>
+                </div>
+              </div>
+              <Assumptions start={step >= 2}/>
+            </section>
+
+            <section className={`sec sec-block ${step >= 3 ? 'in' : ''}`}>
+              <div className="sec-head">
+                <div className="left">
+                  <div className="eyebrow"><span className="num">No. 03</span>Step · Value drivers</div>
+                  <h2>Five drivers carry the model.</h2>
+                </div>
+                <div className="right"><span>Weighted equally · all material</span></div>
+              </div>
+              <Drivers start={step >= 3}/>
+            </section>
+
+            <section className={`sec sec-block ${step >= 4 ? 'in' : ''}`}>
+              <div className="sec-head">
+                <div className="left">
+                  <div className="eyebrow"><span className="num">No. 04</span>Step · Valuation</div>
+                  <h2>The valuation, <em>converging.</em></h2>
+                </div>
+                <div className="right"><span>Method · DCF on emotional cash flows</span></div>
+              </div>
+              <Valuation start={step >= 4}/>
+            </section>
+
+            <section className={`sec sec-block ${step >= 5 ? 'in' : ''}`}>
+              <div className="sec-head">
+                <div className="left">
+                  <div className="eyebrow"><span className="num">No. 05</span>Step · Risks</div>
+                  <h2>Risks, and the one mitigation.</h2>
+                </div>
+                <div className="right"><span>All risks · controllable</span></div>
+              </div>
+              <Risk start={step >= 5}/>
+            </section>
+
+            <section className={`sec sec-block ${step >= 6 ? 'in' : ''}`}>
+              <div className="sec-head">
+                <div className="left">
+                  <div className="eyebrow"><span className="num">No. 06</span>Step · Recommendation</div>
+                  <h2>Final recommendation.</h2>
+                </div>
+                <div className="right"><span>Conviction · maximum</span></div>
+              </div>
+              <Reco start={step >= 6} t={t}/>
+            </section>
+
+            <section className={`final ${step >= 7 ? 'in' : ''}`}>
+              <svg className="heart" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 21s-7-4.35-9.5-9.5C1 7.5 4 4 7.5 4c2 0 3.5 1 4.5 2.5C13 5 14.5 4 16.5 4 20 4 23 7.5 21.5 11.5 19 16.65 12 21 12 21z"/>
+              </svg>
+              <h1>Happy Mother's Day, <em>{t.assetName}.</em></h1>
+              <p>The numbers were always going to come out this way.</p>
+              <div className="sig">Signed, your kid · with love · {new Date(new Date().getFullYear(), 4, 10).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</div>
+            </section>
+          </main>
+
+          <button className={`replay ${done ? 'show' : ''}`} onClick={replay}>↻ Run model again</button>
+
+          <TweaksPanel>
+            <TweakSection label="Memorandum">
+              <TweakText label="Asset name"
+                         value={t.assetName}
+                         placeholder="Mom"
+                         onChange={(v) => setTweak('assetName', v)} />
+              <TweakText label="Coverage since"
+                         value={t.coverageSince}
+                         placeholder="1995 or 'as long as I can remember'"
+                         onChange={(v) => setTweak('coverageSince', v)} />
+              <TweakText label="Analyst"
+                         value={t.analyst}
+                         placeholder="Your kid"
+                         onChange={(v) => setTweak('analyst', v)} />
+            </TweakSection>
+            <TweakSection label="Recommendation">
+              <TweakSelect label="Rating"
+                           value={t.rating}
+                           options={['Strong buy', 'Buy', 'Buy &amp; hold', 'Conviction buy', 'Generational buy']}
+                           onChange={(v) => setTweak('rating', v)} />
+              <TweakText label="Dividend"
+                         value={t.dividend}
+                         placeholder="unconditional love"
+                         onChange={(v) => setTweak('dividend', v)} />
+            </TweakSection>
+            <TweakSection label="Playback">
+              <TweakSlider label="Animation speed"
+                           value={t.speed} min={0.5} max={3} step={0.25} unit="x"
+                           onChange={(v) => setTweak('speed', v)} />
+              <TweakToggle label="Skip boot screen"
+                           value={t.skipBoot}
+                           onChange={(v) => setTweak('skipBoot', v)} />
+              <TweakButton onClick={replay}>↻ Run model again</TweakButton>
+            </TweakSection>
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
