@@ -544,6 +544,64 @@
   }
   .final.in .sig { opacity: 1; }
 
+  /* ---------- Mobile ---------- */
+  @media (max-width: 640px) {
+    /* Shell */
+    .shell { padding: 28px 16px 64px; }
+
+    /* Topbar */
+    .topbar { padding: 12px 16px; }
+    .ticker { display: none; }
+
+    /* Boot */
+    .boot-top > div:last-child { display: none; }
+    .boot-lines { font-size: 11px; }
+    .boot-line .bar { display: none; }
+    .boot-line .status { display: none; }
+    .boot-bottom { flex-direction: column; gap: 4px; }
+
+    /* Hero */
+    .hero { margin-bottom: 40px; gap: 20px; }
+    .hero-eyebrow { margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+    .hero-card { min-height: 180px; }
+    .hero-card .ticker-sym { font-size: 48px; }
+    .hero-card .price { font-size: 26px; }
+    .hero-meta { grid-template-columns: 1fr; gap: 16px; }
+
+    /* Section header */
+    .sec-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .sec-head .right { display: none; }
+    .sec-head .left h2 { font-size: 22px; }
+    .sec-block { margin-bottom: 48px; }
+
+    /* Assumptions */
+    .assumptions { padding: 18px 14px; font-size: 11px; }
+    .arow { grid-template-columns: 18px 1fr auto; gap: 8px; }
+    .arow .calc { display: none; }
+
+    /* Drivers */
+    .driver { min-height: 150px; padding: 16px; }
+    .driver .name { font-size: 15px; }
+
+    /* Valuation */
+    .val-tile .v { font-size: 32px; }
+    .val-tile .v.inf { font-size: 48px; }
+    .val-quote { font-size: 15px; padding: 14px 16px; }
+
+    /* Risk */
+    .risk-row { grid-template-columns: 28px 1fr 72px; gap: 10px; }
+    .risk-row .desc { display: none; }
+    .risk-row .what { font-size: 14px; }
+
+    /* Reco */
+    .reco { padding: 28px 20px; }
+    .reco .top { flex-direction: column; gap: 4px; }
+
+    /* Final */
+    .final { margin-top: 64px; padding: 40px 16px 16px; }
+    .final p { font-size: 18px; }
+  }
+
   /* ---------- Replay button ---------- */
   .replay {
     position: fixed; bottom: 24px; right: 24px;
